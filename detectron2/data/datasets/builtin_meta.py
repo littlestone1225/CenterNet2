@@ -13,8 +13,13 @@ The only goal is to allow users who don't have these dataset to use pre-trained 
 Users don't have to download a COCO json (which contains metadata), in order to visualize a
 COCO model (with correct class names and colors).
 """
-
-
+COCO_CATEGORIES = [
+    {"color": [220, 20, 60], "isthing": 1, "id": 1, "name": "bridge"},
+    {"color": [119, 11, 32], "isthing": 1, "id": 2, "name": "appearance_less"},
+    {"color": [0, 0, 142], "isthing": 1, "id": 3, "name": "excess_solder"},
+    {"color": [0, 0, 230], "isthing": 1, "id": 4, "name": "appearance"},
+]
+"""
 # All coco categories, together with their nice-looking visualization colors
 # It's from https://github.com/cocodataset/panopticapi/blob/master/panoptic_coco_categories.json
 COCO_CATEGORIES = [
@@ -152,7 +157,7 @@ COCO_CATEGORIES = [
     {"color": [102, 102, 156], "isthing": 0, "id": 199, "name": "wall-other-merged"},
     {"color": [250, 141, 255], "isthing": 0, "id": 200, "name": "rug-merged"},
 ]
-
+"""
 # fmt: off
 COCO_PERSON_KEYPOINT_NAMES = (
     "nose",
@@ -235,7 +240,8 @@ ADE20K_SEM_SEG_CATEGORIES = [
 def _get_coco_instances_meta():
     thing_ids = [k["id"] for k in COCO_CATEGORIES if k["isthing"] == 1]
     thing_colors = [k["color"] for k in COCO_CATEGORIES if k["isthing"] == 1]
-    assert len(thing_ids) == 80, len(thing_ids)
+    #assert len(thing_ids) == 80, len(thing_ids)
+    assert len(thing_ids) == 4, len(thing_ids)
     # Mapping from the incontiguous COCO category id to an id in [0, 79]
     thing_dataset_id_to_contiguous_id = {k: i for i, k in enumerate(thing_ids)}
     thing_classes = [k["name"] for k in COCO_CATEGORIES if k["isthing"] == 1]
@@ -252,7 +258,8 @@ def _get_coco_panoptic_separated_meta():
     Returns metadata for "separated" version of the panoptic segmentation dataset.
     """
     stuff_ids = [k["id"] for k in COCO_CATEGORIES if k["isthing"] == 0]
-    assert len(stuff_ids) == 53, len(stuff_ids)
+    #assert len(stuff_ids) == 53, len(stuff_ids)
+    assert len(stuff_ids) == 0, len(stuff_ids)
 
     # For semantic segmentation, this mapping maps from contiguous stuff id
     # (in [0, 53], used in models) to ids in the dataset (used for processing results)

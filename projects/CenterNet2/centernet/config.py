@@ -84,3 +84,5 @@ def add_centernet_config(cfg):
     _C.SAVE_PTH = False
     _C.VIS_THRESH = 0.3
     _C.DEBUG_SHOW_NAME = False
+
+    _C.INPUT.ROTATION_ANGLES = [0]

@@ -39,6 +39,7 @@ from detectron2.evaluation import (
 )
 from detectron2.modeling import GeneralizedRCNNWithTTA
 
+from detectron2.data.datasets import register_coco_instances
 
 class Trainer(DefaultTrainer):
     """
@@ -127,6 +128,15 @@ def setup(args):
 
 
 def main(args):
+    root_dir = '/home/u9633227/AOI_PCB_Retrain_detectron2/pcb_data_fg_35922_bg_36046'
+    train_json_file_path = os.path.join(root_dir, 'annotations/train.json')
+    pcb_train_data_dir = os.path.join(root_dir, 'train')
+    register_coco_instances("pcb_data_train", {}, train_json_file_path, pcb_train_data_dir)
+
+    test_json_file_path = os.path.join(root_dir, 'annotations/test.json')
+    pcb_test_data_dir = os.path.join(root_dir, 'test')
+    register_coco_instances("pcb_data_test", {}, test_json_file_path, pcb_test_data_dir)
+
     cfg = setup(args)
 
     if args.eval_only:
@@ -156,6 +166,7 @@ def main(args):
 
 
 if __name__ == "__main__":
+    # python tools/train_net.py --config-file ./configs/COCO-Detection/retinanet_R_101_FPN_3x_PCB.yaml --num-gpus 2
     args = default_argument_parser().parse_args()
     print("Command Line Args:", args)
     launch(

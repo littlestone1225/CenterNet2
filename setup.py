@@ -210,7 +210,7 @@ setup(
         "tqdm>4.29.0",
         "tensorboard",
         "fvcore==0.1.4",  # required like this to make it pip installable
-        "iopath==0.1.7",
+        "iopath==0.1.8",
         "pycocotools>=2.0.2",  # corresponds to https://github.com/ppwwyyxx/cocoapi
         "future",  # used by caffe2
         "pydot",  # used to save caffe2 SVGs

@@ -596,14 +596,15 @@ def build_augmentation(cfg, is_train):
     '''
 
     if is_train:
-        # augmentation.append(T.RandomContrast(0.9, 1.1))
-        # augmentation.append(T.RandomBrightness(0.9, 1.1))
-        # augmentation.append(T.RandomSaturation(0.9, 1.1))
+        # augmentation.append(T.RandomContrast(0.5, 1.5))
+        # augmentation.append(T.RandomBrightness(0.5, 1.5))
+        # augmentation.append(T.RandomSaturation(0.5, 1.5))
         # augmentation.append(T.RandomLighting(0.5))
+        # augmentation.append(T.RandomFlip(prob=0.5, horizontal=True, vertical=False))
+        # augmentation.append(T.RandomFlip(prob=0.5, horizontal=False, vertical=True))
 
+        augmentation.append(T.RandomFlip2())
         augmentation.append(T.RandomRotation(cfg.INPUT.ROTATION_ANGLES, expand=False, sample_style="choice"))
-        augmentation.append(T.RandomFlip(prob=0.5, horizontal=True, vertical=False))
-        augmentation.append(T.RandomFlip(prob=0.5, horizontal=False, vertical=True))
 
     return augmentation
 

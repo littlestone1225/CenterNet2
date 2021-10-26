@@ -38,8 +38,22 @@ from detectron2.evaluation import (
     verify_results,
 )
 from detectron2.modeling import GeneralizedRCNNWithTTA
-
 from detectron2.data.datasets import register_coco_instances
+
+import sys
+aoi_dir_name = os.getenv('AOI_DIR_NAME')
+assert aoi_dir_name != None, "Environment variable AOI_DIR_NAME is None"
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+idx = current_dir.find(aoi_dir_name) + len(aoi_dir_name)
+aoi_dir = current_dir[:idx]
+
+sys.path.append(os.path.join(aoi_dir, "config"))
+from config import read_config_yaml, write_config_yaml
+
+# Read config_file
+config_file = os.path.join(aoi_dir, 'config/config.yaml')
+config = read_config_yaml(config_file)
 
 class Trainer(DefaultTrainer):
     """
@@ -128,16 +142,24 @@ def setup(args):
 
 
 def main(args):
-    root_dir = '/home/u9633227/AOI_PCB_Retrain_detectron2/pcb_data_fg_35922_bg_36046'
-    train_json_file_path = os.path.join(root_dir, 'annotations/train.json')
-    pcb_train_data_dir = os.path.join(root_dir, 'train')
+    pcb_data_dir = config['pcb_data_dir']
+    train_json_file_path = os.path.join(pcb_data_dir, 'annotations/train.json')
+    pcb_train_data_dir = os.path.join(pcb_data_dir, 'train')
     register_coco_instances("pcb_data_train", {}, train_json_file_path, pcb_train_data_dir)
 
-    test_json_file_path = os.path.join(root_dir, 'annotations/test.json')
-    pcb_test_data_dir = os.path.join(root_dir, 'test')
+    test_json_file_path = os.path.join(pcb_data_dir, 'annotations/test.json')
+    pcb_test_data_dir = os.path.join(pcb_data_dir, 'test')
     register_coco_instances("pcb_data_test", {}, test_json_file_path, pcb_test_data_dir)
 
     cfg = setup(args)
+
+    retinanet_model_output_dir = os.path.join(os.getcwd(), os.path.basename(cfg.OUTPUT_DIR))
+    retinanet_model_output_dir_name = os.path.basename(retinanet_model_output_dir)
+    retinanet_model_output_version = '_'.join(retinanet_model_output_dir_name.split('_')[:-1])
+
+    config['retinanet_model_output_dir'] = retinanet_model_output_dir
+    config['retinanet_model_output_version'] = retinanet_model_output_version
+    write_config_yaml(config_file, config)
 
     if args.eval_only:
         model = Trainer.build_model(cfg)

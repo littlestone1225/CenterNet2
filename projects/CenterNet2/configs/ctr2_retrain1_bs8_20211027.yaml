@@ -1,0 +1,53 @@
+_BASE_: "Base-CenterNet2.yaml"
+MODEL:
+  BACKBONE:
+    NAME: "build_p37_dla_bifpn_backbone"
+  ROI_HEADS:
+    NUM_CLASSES: 4
+  #RETINANET:
+  #NUM_CLASSES: 4
+  BIFPN:
+    OUT_CHANNELS: 160
+    NUM_LEVELS: 5
+    NUM_BIFPN: 3
+  CENTERNET:
+    NUM_CLASSES: 4
+    POST_NMS_TOPK_TEST: 128
+  #WEIGHTS: '/home/aoi/AOI_PCB_CenterNet2/ctr2_pcb/output/CenterNet2/DLA-BiFPN-P5_v6ex_aug_bs8_decay-4_20210825/model_0809999.pth'
+  WEIGHTS: '/home/aoi/AOI_PCB_Retrain_detectron2/models/old/CenterNet2/model_0224999.pth'
+  PIXEL_MEAN: [39.94, 50.83, 38.44]
+  PIXEL_STD: [42.74, 47.05, 47.55]
+  FPN:
+    IN_FEATURES: ["dla3", "dla4", "dla5"]
+SOLVER:
+  LR_SCHEDULER_NAME: "WarmupCosineLR"
+  MAX_ITER: 100000
+  BASE_LR: 0.001
+  IMS_PER_BATCH: 8 #64
+  CHECKPOINT_PERIOD: 500
+  WEIGHT_DECAY: 0.0001
+  WARMUP_ITERS: 1000
+  RESET_ITER: true
+  #TEST:
+  #  EVAL_PERIOD: 0 #80000
+INPUT:
+  FORMAT: RGB
+  CUSTOM_AUG: EfficientDetResizeCrop
+  TRAIN_SIZE: 512
+  MIN_SIZE_TRAIN: (512, 640, 672, 704, 736, 768, 800)
+  MIN_SIZE_TEST: 512
+  MAX_SIZE_TEST: 512
+  ROTATION_ANGLES: [0, 90, 180, 270]
+DATALOADER:
+  FILTER_EMPTY_ANNOTATIONS: false
+SAVE_PTH: true
+#DATASETS:
+#  TRAIN: ("pcb_aifs_retrain_v1",)
+#  TEST: ("pcb_v4_val",)
+#  TRAIN: ("coco_2017_train","coco_un_yolov4_55_0.5",)
+#TEST:
+#  AUG:
+#    ENABLED: False #True
+#    MIN_SIZES: (256, 384, 512, 640, 768)
+#    MAX_SIZE: 768 
+#    FLIP: False #True

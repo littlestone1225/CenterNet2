@@ -44,6 +44,9 @@ assert aoi_dir_name != None, "Environment variable AOI_DIR_NAME is None"
 current_dir = os.path.dirname(os.path.abspath(__file__))
 idx = current_dir.find(aoi_dir_name) + len(aoi_dir_name)
 aoi_dir = current_dir[:idx]
+
+sys.path.append(os.path.join(aoi_dir, "config"))
+from config import read_config_yaml, write_config_yaml
 """
 sys.path.append(os.path.join(aoi_dir, "ctr2_pcb/previous_stuff"))
 from validation.validation import gen_inference_json
@@ -186,25 +189,34 @@ def do_train(cfg, model, resume=False):
             "Total training time: {}".format(
                 str(datetime.timedelta(seconds=int(total_time)))))
 
-def setup(args, yaml_config):
+def setup(args):
     """
     Create configs and perform basic setups.
     """
-
     cfg = get_cfg()
     add_centernet_config(cfg)
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
-    if args.aifs:cfg.OUTPUT_DIR = yaml_config['centernet2_model_output_dir']
-    else:cfg.OUTPUT_DIR = yaml_config['model_file_dir']
+
+    '''
+    if args.aifs:
+        cfg.OUTPUT_DIR = yaml_config['centernet2_model_output_dir']
+    else:
+        cfg.OUTPUT_DIR = yaml_config['model_file_dir']
+
     if 'centernet2_old_model_file_path' in yaml_config:
         cfg.MODEL.WEIGHTS = yaml_config['centernet2_old_model_file_path']
-    if ('retrain_task' in yaml_config) and (not args.aifs):cfg.DATASETS.TRAIN = retrain_data_map(yaml_config['retrain_task'])
+
+    if ('retrain_task' in yaml_config) and (not args.aifs):
+        cfg.DATASETS.TRAIN = retrain_data_map(yaml_config['retrain_task'])
+
     if '/auto' in cfg.OUTPUT_DIR:
         file_name = os.path.basename(args.config_file)[:-5]
         cfg.OUTPUT_DIR = cfg.OUTPUT_DIR.replace('/auto', '/{}'.format(file_name))
         logger.info('OUTPUT_DIR: {}'.format(cfg.OUTPUT_DIR))
+
     cfg.freeze()
+    '''
     default_setup(cfg, args)
     return cfg
 
@@ -264,25 +276,35 @@ def aifs_performance_review(args):
 def main(args):
     if args.aifs:
         config_file = os.path.join(aoi_dir, 'config/config.yaml')
-        print('aoi_dir: ', aoi_dir)
-        sys.path.append(os.path.join(aoi_dir, "config"))
-        from config import read_config_yaml, write_config_yaml
         config = read_config_yaml(config_file)
-        model_file_dir = config['centernet2_model_output_dir']
         args.config_file = config['centernet2_yaml_file_path']
         
         pcb_data_dir = config['pcb_data_dir']
         train_json_file_path = os.path.join(pcb_data_dir, 'annotations/train.json')
         pcb_train_data_dir = os.path.join(pcb_data_dir, 'train')
         register_coco_instances("pcb_data_train", {}, train_json_file_path, pcb_train_data_dir)
+
+        test_json_file_path = os.path.join(pcb_data_dir, 'annotations/test.json')
+        pcb_test_data_dir = os.path.join(pcb_data_dir, 'test')
+        register_coco_instances("pcb_data_test", {}, test_json_file_path, pcb_test_data_dir)
     else:
         config_file = os.path.join(args.aoi_dir, 'config/config.yaml')
-        from config import read_config_yaml, write_config_yaml
         config = read_config_yaml(config_file)
-        model_file_dir = config['model_file_dir']
         args.config_file = config['yaml_file_path']
     
-    cfg = setup(args, config)
+    cfg = setup(args)
+    cfg.DATASETS.TRAIN = ("pcb_data_train",)
+    cfg.DATASETS.TEST = ("pcb_data_test",)
+
+    centernet2_model_output_dir = os.path.join(os.getcwd(), os.path.basename(cfg.OUTPUT_DIR))
+    centernet2_model_output_dir_name = os.path.basename(centernet2_model_output_dir)
+    centernet2_model_output_version = '_'.join(centernet2_model_output_dir_name.split('_')[:-1])
+
+    config['centernet2_model_output_dir'] = centernet2_model_output_dir
+    config['centernet2_model_output_version'] = centernet2_model_output_version
+    write_config_yaml(config_file, config)
+
+    cfg.freeze()
     model = build_model(cfg)
     logger.info("Model:\n{}".format(model))
     

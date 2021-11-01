@@ -246,13 +246,13 @@ def aifs_performance_review(args):
     model_type='CenterNet2'
     #Val
     validate_new_models_on_val(model_type = model_type)
-    val_best_model_iter_list = evaluate_new_models_on_val(fp_rate=args.fpr, return_type='best_models')
+    val_best_model_iter_list = evaluate_new_models_on_val(model_type = model_type, fp_rate=args.fpr, return_type='best_models')
     validate_new_models_on_test_and_fn(model_type, val_best_model_iter_list)
     #Test and fn
-    test_best_model_iter_list = evaluate_new_models_on_test_and_fn_by_fp_rate(val_best_model_iter_list, \
+    test_best_model_iter_list = evaluate_new_models_on_test_and_fn_by_fp_rate(model_type, val_best_model_iter_list, \
                                                                   fp_rate=args.fpr, return_type='best_models')
     
-    new_eval_result_list = evaluate_new_models_on_test_and_fn_by_fp_rate(test_best_model_iter_list, \
+    new_eval_result_list = evaluate_new_models_on_test_and_fn_by_fp_rate(model_type, test_best_model_iter_list, \
                                                                   fp_rate=args.fpr, return_type='eval_result')
     
     
@@ -265,7 +265,7 @@ def aifs_performance_review(args):
             break   
     
     #validate_old_model_on_test_and_fn(model_type = model_type)
-    eval_result_list = evaluate_old_model_on_test_and_fn_by_fp_rate(fp_rate=args.fpr, return_type='eval_result')
+    eval_result_list = evaluate_old_model_on_test_and_fn_by_fp_rate(model_type, fp_rate=args.fpr, return_type='eval_result')
     eval_result_list.append(best_eval_result)
     best_model_iter = select_best_model_aifs(eval_result_list, 1)
     if best_model_iter == best_eval_result['model_iter']:is_replaced = True
@@ -307,7 +307,7 @@ def main(args):
     cfg.freeze()
     model = build_model(cfg)
     logger.info("Model:\n{}".format(model))
-    
+
     if args.eval_only:
         DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
             cfg.MODEL.WEIGHTS, resume=args.resume
@@ -324,16 +324,17 @@ def main(args):
             model, device_ids=[comm.get_local_rank()], broadcast_buffers=False,
             find_unused_parameters=True
         )
-    
+
     do_train(cfg, model, resume=args.resume)
+
     if not args.aifs:
         best_model = performance_review(cfg, config, args, config['model_file_dir'])
         best_model_path = os.path.join(config['model_file_dir'], best_model)
         logger.info("Best_model_path:\n{}".format(best_model_path))
     else:
         #best_model = aifs_performance_review(cfg, config, args, config['centernet2_model_output_dir'])
-        best_model_iter, Is_replaced = aifs_performance_review(args)     
-    
+        best_model_iter, Is_replaced = aifs_performance_review(args)
+
         test_data_dir = config['test_data_dir']
         retrain_data_val_dir = config['retrain_data_val_dir']
 
@@ -355,7 +356,7 @@ def main(args):
                                              os.path.join(retrain_data_val_dir, 'CenterNet2_old_inference_result', centernet2_old_model_file_id, 'labels')]
         
         best_model_path = config['centernet2_best_model_file_path']
-                                         
+
     logger.info("Best_model_path:\n{}".format(best_model_path))
     write_config_yaml(config_file, config)
 

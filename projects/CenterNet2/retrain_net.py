@@ -244,32 +244,40 @@ def performance_review(cfg, yaml_config, args, model_file_dir):
     
 def aifs_performance_review(args):
     model_type='CenterNet2'
+    run_validation = True
+
     #Val
-    validate_new_models_on_val(model_type = model_type)
+    if run_validation:
+        validate_new_models_on_val(model_type = model_type)
     val_best_model_iter_list = evaluate_new_models_on_val(model_type = model_type, fp_rate=args.fpr, return_type='best_models')
-    validate_new_models_on_test_and_fn(model_type, val_best_model_iter_list)
+
     #Test and fn
+    if run_validation:
+        validate_new_models_on_test_and_fn(model_type, val_best_model_iter_list)
+
     test_best_model_iter_list = evaluate_new_models_on_test_and_fn_by_fp_rate(model_type, val_best_model_iter_list, \
                                                                   fp_rate=args.fpr, return_type='best_models')
-    
+
     new_eval_result_list = evaluate_new_models_on_test_and_fn_by_fp_rate(model_type, test_best_model_iter_list, \
                                                                   fp_rate=args.fpr, return_type='eval_result')
-    
-    
+
     best_model_iter = select_best_model_aifs(new_eval_result_list, args.top_k)
-    
+
     best_eval_result = None
     for eval_result in new_eval_result_list:
         if eval_result['model_iter'] == best_model_iter:
             best_eval_result = eval_result
             break   
-    
-    #validate_old_model_on_test_and_fn(model_type = model_type)
+
+    if run_validation:
+        validate_old_model_on_test_and_fn(model_type = model_type)
     eval_result_list = evaluate_old_model_on_test_and_fn_by_fp_rate(model_type, fp_rate=args.fpr, return_type='eval_result')
     eval_result_list.append(best_eval_result)
     best_model_iter = select_best_model_aifs(eval_result_list, 1)
-    if best_model_iter == best_eval_result['model_iter']:is_replaced = True
-    else:is_replaced = False
+    if best_model_iter == best_eval_result['model_iter']:
+        is_replaced = True
+    else:
+        is_replaced = False
     
     return best_model_iter, is_replaced
 

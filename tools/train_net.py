@@ -153,14 +153,6 @@ def main(args):
 
     cfg = setup(args)
 
-    retinanet_model_output_dir = os.path.join(os.getcwd(), os.path.basename(cfg.OUTPUT_DIR))
-    retinanet_model_output_dir_name = os.path.basename(retinanet_model_output_dir)
-    retinanet_model_output_version = '_'.join(retinanet_model_output_dir_name.split('_')[:-1])
-
-    config['retinanet_model_output_dir'] = retinanet_model_output_dir
-    config['retinanet_model_output_version'] = retinanet_model_output_version
-    write_config_yaml(config_file, config)
-
     if args.eval_only:
         model = Trainer.build_model(cfg)
         DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(

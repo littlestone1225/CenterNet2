@@ -36,4 +36,4 @@ INPUT:
 DATALOADER:
   FILTER_EMPTY_ANNOTATIONS: false
 SAVE_PTH: true
-OUTPUT_DIR: ./CenterNet2_2021_10_28_output
+OUTPUT_DIR: /home/aoi/AOI_PCB_Retrain_detectron2/detectron2/CenterNet2_2021_11_10_output

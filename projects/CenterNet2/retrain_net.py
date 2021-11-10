@@ -304,14 +304,6 @@ def main(args):
     cfg.DATASETS.TRAIN = ("pcb_data_train",)
     cfg.DATASETS.TEST = ("pcb_data_test",)
 
-    centernet2_model_output_dir = os.path.join(os.getcwd(), os.path.basename(cfg.OUTPUT_DIR))
-    centernet2_model_output_dir_name = os.path.basename(centernet2_model_output_dir)
-    centernet2_model_output_version = '_'.join(centernet2_model_output_dir_name.split('_')[:-1])
-
-    config['centernet2_model_output_dir'] = centernet2_model_output_dir
-    config['centernet2_model_output_version'] = centernet2_model_output_version
-    write_config_yaml(config_file, config)
-
     cfg.freeze()
     model = build_model(cfg)
     logger.info("Model:\n{}".format(model))

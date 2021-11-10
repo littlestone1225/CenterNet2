@@ -55,9 +55,7 @@ from validation.multi_th_eval import evaluation_through_model_iter
 from data_map.pcb_retrain_v5  import retrain_data_map
 """
 sys.path.append(os.path.join(aoi_dir, "validation"))
-from validation import validate_new_models_on_val, validate_new_models_on_test_and_fn, validate_old_model_on_test_and_fn
-from evaluation import evaluate_new_models_on_val, evaluate_new_models_on_val, \
-    evaluate_new_models_on_test_and_fn_by_fp_rate, evaluate_old_model_on_test_and_fn_by_fp_rate
+
 from tools.model_select import select_best_model_aifs #select_model
 #from model_select import select_model
 #from multi_th_eval import evaluation_through_model_iter
@@ -246,6 +244,8 @@ def aifs_performance_review(args):
     model_type='CenterNet2'
     run_validation = True
 
+    from validation import validate_new_models_on_val, validate_new_models_on_test_and_fn, validate_old_model_on_test_and_fn
+    from evaluation import evaluate_new_models_on_val, evaluate_new_models_on_test_and_fn_by_fp_rate, evaluate_old_model_on_test_and_fn_by_fp_rate
     #Val
     if run_validation:
         validate_new_models_on_val(model_type = model_type)

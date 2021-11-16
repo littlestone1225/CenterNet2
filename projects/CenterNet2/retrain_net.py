@@ -338,23 +338,22 @@ def main(args):
         test_data_dir = config['test_data_dir']
         retrain_data_val_dir = config['retrain_data_val_dir']
 
-        if Is_replaced: 
+        centernet2_old_model_file_path = config['centernet2_old_model_file_path']
+        centernet2_old_model_file_id = os.path.splitext(os.path.basename(centernet2_old_model_file_path))[0]
+        config['centernet2_old_model_label_dir'] = [os.path.join(test_data_dir, 'CenterNet2_old_inference_result', centernet2_old_model_file_id, 'labels'),
+                                                    os.path.join(retrain_data_val_dir, 'CenterNet2_old_inference_result', centernet2_old_model_file_id, 'labels')]
+
+        if Is_replaced:
             centernet2_model_output_version = config['centernet2_model_output_version']
-
             config['centernet2_best_model_file_path'] = os.path.join(config['centernet2_model_output_dir'], "{}.pth".format(best_model_iter))
-            config['centernet2_label_dir'] = [os.path.join(test_data_dir, '{}_inference_result'.format(centernet2_model_output_version), \
-                                         best_model_iter, 'labels'),
-                                         os.path.join(retrain_data_val_dir, '{}_inference_result'.format(centernet2_model_output_version), \
-                                         best_model_iter, 'labels')]
-
+            config['centernet2_best_model_label_dir'] = [os.path.join(test_data_dir, '{}_inference_result'.format(centernet2_model_output_version), \
+                                                         best_model_iter, 'labels'),
+                                                         os.path.join(retrain_data_val_dir, '{}_inference_result'.format(centernet2_model_output_version), \
+                                                         best_model_iter, 'labels')]
         else:
-            centernet2_old_model_file_path = config['centernet2_old_model_file_path']
-            centernet2_old_model_file_id = os.path.splitext(os.path.basename(centernet2_old_model_file_path))[0]
-
             config['centernet2_best_model_file_path'] = centernet2_old_model_file_path
-            config['centernet2_label_dir'] = [os.path.join(test_data_dir, 'CenterNet2_old_inference_result', centernet2_old_model_file_id, 'labels'),
-                                             os.path.join(retrain_data_val_dir, 'CenterNet2_old_inference_result', centernet2_old_model_file_id, 'labels')]
-        
+            config['centernet2_best_model_label_dir'] = config['centernet2_old_model_label_dir']
+
         best_model_path = config['centernet2_best_model_file_path']
 
     logger.info("Best_model_path:\n{}".format(best_model_path))

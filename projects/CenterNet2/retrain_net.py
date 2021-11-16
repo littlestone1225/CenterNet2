@@ -340,24 +340,27 @@ def main(args):
 
         centernet2_old_model_file_path = config['centernet2_old_model_file_path']
         centernet2_old_model_file_id = os.path.splitext(os.path.basename(centernet2_old_model_file_path))[0]
-        config['centernet2_old_model_label_dir'] = [os.path.join(test_data_dir, 'CenterNet2_old_inference_result', centernet2_old_model_file_id, 'labels'),
-                                                    os.path.join(retrain_data_val_dir, 'CenterNet2_old_inference_result', centernet2_old_model_file_id, 'labels')]
+        centernet2_old_model_label_dir = [os.path.join(test_data_dir, 'CenterNet2_old_inference_result', centernet2_old_model_file_id, 'labels'),
+                                          os.path.join(retrain_data_val_dir, 'CenterNet2_old_inference_result', centernet2_old_model_file_id, 'labels')]
 
         if Is_replaced:
             centernet2_model_output_version = config['centernet2_model_output_version']
-            config['centernet2_best_model_file_path'] = os.path.join(config['centernet2_model_output_dir'], "{}.pth".format(best_model_iter))
-            config['centernet2_best_model_label_dir'] = [os.path.join(test_data_dir, '{}_inference_result'.format(centernet2_model_output_version), \
-                                                         best_model_iter, 'labels'),
-                                                         os.path.join(retrain_data_val_dir, '{}_inference_result'.format(centernet2_model_output_version), \
-                                                         best_model_iter, 'labels')]
+            centernet2_best_model_file_path = os.path.join(config['centernet2_model_output_dir'], "{}.pth".format(best_model_iter))
+            centernet2_best_model_label_dir = [ os.path.join(test_data_dir, '{}_inference_result'.format(centernet2_model_output_version), \
+                                                best_model_iter, 'labels'),
+                                                os.path.join(retrain_data_val_dir, '{}_inference_result'.format(centernet2_model_output_version), \
+                                                best_model_iter, 'labels') ]
         else:
-            config['centernet2_best_model_file_path'] = centernet2_old_model_file_path
-            config['centernet2_best_model_label_dir'] = config['centernet2_old_model_label_dir']
+            centernet2_best_model_file_path = centernet2_old_model_file_path
+            centernet2_best_model_label_dir = centernet2_old_model_label_dir
 
-        best_model_path = config['centernet2_best_model_file_path']
+        best_model_path = centernet2_best_model_file_path
 
     logger.info("Best_model_path:\n{}".format(best_model_path))
-    write_config_yaml(config_file, config)
+    subdict = { 'centernet2_old_model_label_dir': centernet2_old_model_label_dir,
+                'centernet2_best_model_file_path': centernet2_best_model_file_path,
+                'centernet2_best_model_label_dir': centernet2_best_model_label_dir  }
+    write_config_yaml(config_file, subdict)
 
 if __name__ == "__main__":
     args = default_argument_parser()

@@ -38,7 +38,22 @@ from detectron2.evaluation import (
     verify_results,
 )
 from detectron2.modeling import GeneralizedRCNNWithTTA
+from detectron2.data.datasets import register_coco_instances
 
+import sys
+aoi_dir_name = os.getenv('AOI_DIR_NAME')
+assert aoi_dir_name != None, "Environment variable AOI_DIR_NAME is None"
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+idx = current_dir.find(aoi_dir_name) + len(aoi_dir_name)
+aoi_dir = current_dir[:idx]
+
+sys.path.append(os.path.join(aoi_dir, "config"))
+from config import read_config_yaml, write_config_yaml
+
+# Read config_file
+config_file = os.path.join(aoi_dir, 'config/config.yaml')
+config = read_config_yaml(config_file)
 
 class Trainer(DefaultTrainer):
     """
@@ -127,6 +142,15 @@ def setup(args):
 
 
 def main(args):
+    pcb_data_dir = config['pcb_data_dir']
+    train_json_file_path = os.path.join(pcb_data_dir, 'annotations/train.json')
+    pcb_train_data_dir = os.path.join(pcb_data_dir, 'train')
+    register_coco_instances("pcb_data_train", {}, train_json_file_path, pcb_train_data_dir)
+
+    test_json_file_path = os.path.join(pcb_data_dir, 'annotations/test.json')
+    pcb_test_data_dir = os.path.join(pcb_data_dir, 'test')
+    register_coco_instances("pcb_data_test", {}, test_json_file_path, pcb_test_data_dir)
+
     cfg = setup(args)
 
     if args.eval_only:
@@ -156,6 +180,7 @@ def main(args):
 
 
 if __name__ == "__main__":
+    # python tools/train_net.py --config-file ./configs/COCO-Detection/retinanet_R_101_FPN_3x_PCB.yaml --num-gpus 2
     args = default_argument_parser().parse_args()
     print("Command Line Args:", args)
     launch(

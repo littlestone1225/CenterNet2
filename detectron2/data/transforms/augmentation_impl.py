@@ -24,6 +24,7 @@ __all__ = [
     "RandomCrop",
     "RandomExtent",
     "RandomFlip",
+    "RandomFlip2",
     "RandomSaturation",
     "RandomLighting",
     "RandomRotation",
@@ -97,6 +98,32 @@ class RandomFlip(Augmentation):
                 return VFlipTransform(h)
         else:
             return NoOpTransform()
+
+class RandomFlip2(Augmentation):
+    """
+    Flip the image horizontally or vertically with the given probability.
+    """
+
+    def __init__(self, prob=[0.3, 0.65]):
+        """
+        Args:
+            prob (float): probability of flip.
+            horizontal (boolean): whether to apply horizontal flipping
+            vertical (boolean): whether to apply vertical flipping
+        """
+        super().__init__()
+        self._init(locals())
+
+    def get_transform(self, image):
+        h, w = image.shape[:2]
+        random_prob = self._rand_range()
+
+        if random_prob < self.prob[0]:
+            return NoOpTransform()
+        elif random_prob >= self.prob[0] and random_prob < self.prob[1]:
+            return HFlipTransform(w)
+        elif random_prob >= self.prob[1]:
+            return VFlipTransform(h)
 
 
 class Resize(Augmentation):

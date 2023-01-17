@@ -49,7 +49,15 @@ def build_custom_augmentation(cfg, is_train):
         assert 0, cfg.INPUT.CUSTOM_AUG
 
     if is_train:
-        augmentation.append(T.RandomFlip())
+        #augmentation.append(T.RandomFlip())
+        augmentation.append(T.RandomContrast(0.2, 1.8))
+        augmentation.append(T.RandomBrightness(0.5, 1.5))
+        augmentation.append(T.RandomSaturation(0.9, 1.1))
+        augmentation.append(T.RandomLighting(0.5))
+
+        augmentation.append(T.RandomRotation(cfg.INPUT.ROTATION_ANGLES, expand=False, sample_style="choice"))
+        augmentation.append(T.RandomFlip(prob=0.5, horizontal=True, vertical=False))
+        augmentation.append(T.RandomFlip(prob=0.5, horizontal=False, vertical=True))
     return augmentation
 
 

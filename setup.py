@@ -209,13 +209,13 @@ setup(
         "matplotlib",
         "tqdm>4.29.0",
         "tensorboard",
-        "fvcore>=0.1.3,<0.1.4",  # required like this to make it pip installable
-        "iopath>=0.1.2",
+        "fvcore==0.1.4",  # required like this to make it pip installable
+        "iopath==0.1.8",
         "pycocotools>=2.0.2",  # corresponds to https://github.com/ppwwyyxx/cocoapi
         "future",  # used by caffe2
         "pydot",  # used to save caffe2 SVGs
         "dataclasses; python_version<'3.7'",
-        "omegaconf>=2",
+        "omegaconf==2.1.0.dev22",
     ],
     extras_require={
         "all": [

@@ -61,6 +61,9 @@ _C.INPUT.MAX_SIZE_TEST = 1333
 # choose one of ["horizontal, "vertical", "none"]
 _C.INPUT.RANDOM_FLIP = "horizontal"
 
+# List of angles for rotation in data augmentation during training (TK add)
+_C.INPUT.ROTATION_ANGLES = [0]
+
 # `True` if cropping is used for data augmentation during training
 _C.INPUT.CROP = CN({"ENABLED": False})
 # Cropping type. See documentation of `detectron2.data.transforms.RandomCrop` for explanation.

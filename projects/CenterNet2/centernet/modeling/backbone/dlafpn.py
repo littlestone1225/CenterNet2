@@ -218,8 +218,8 @@ class DLA(Backbone):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 m.weight.data.normal_(0, math.sqrt(2. / n))
 
-        self.load_pretrained_model(
-            data='imagenet', name='dla34', hash='ba72cf86')
+        # self.load_pretrained_model(
+        #     data='imagenet', name='dla34', hash='ba72cf86')
 
     def load_pretrained_model(self, data, name, hash):
         model_url = get_model_url(data, name, hash)

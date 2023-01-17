@@ -240,19 +240,25 @@ def performance_review(cfg, yaml_config, args, model_file_dir):
         
     return best_model_path
     
-def aifs_performance_review(args):
+def aifs_performance_review(args, config):
     model_type='CenterNet2'
-    run_validation = True
+    run_validation = False
 
     from validation import validate_new_models_on_val, validate_new_models_on_test_and_fn, validate_old_model_on_test_and_fn
     from evaluation import evaluate_new_models_on_val, evaluate_new_models_on_test_and_fn_by_fp_rate, evaluate_old_model_on_test_and_fn_by_fp_rate
+    
     #Val
-    if run_validation:
+    inference_path = os.path.join(config['val_data_dir'], '{}_inference_result'.format(config['centernet2_model_output_version']))
+
+    if run_validation or not os.path.exists(inference_path):
         validate_new_models_on_val(model_type = model_type)
     val_best_model_iter_list = evaluate_new_models_on_val(model_type = model_type, fp_rate=args.fpr, return_type='best_models')
 
     #Test and fn
-    if run_validation:
+    test_inference_path = os.path.join(config['test_data_dir'], '{}_inference_result'.format(config['centernet2_model_output_version']))
+    retrain_inference_path = os.path.join(config['retrain_data_val_dir'], '{}_inference_result'.format(config['centernet2_model_output_version']))
+
+    if run_validation or (not os.path.exists(retrain_inference_path) or not os.path.exists(test_inference_path)):
         validate_new_models_on_test_and_fn(model_type, val_best_model_iter_list)
 
     test_best_model_iter_list = evaluate_new_models_on_test_and_fn_by_fp_rate(model_type, val_best_model_iter_list, \
@@ -268,8 +274,12 @@ def aifs_performance_review(args):
         if eval_result['model_iter'] == best_model_iter:
             best_eval_result = eval_result
             break   
+    
+    # old model
+    test_old_inference_path = os.path.join(config['test_data_dir'], 'CenterNet2_old_inference_result')
+    retrain_olg_inference_path = os.path.join(config['retrain_data_val_dir'], 'CenterNet2_old_inference_result')
 
-    if run_validation:
+    if run_validation or (not os.path.exists(test_old_inference_path) or not os.path.exists(retrain_olg_inference_path)):
         validate_old_model_on_test_and_fn(model_type = model_type)
     eval_result_list = evaluate_old_model_on_test_and_fn_by_fp_rate(model_type, fp_rate=args.fpr, return_type='eval_result')
     eval_result_list.append(best_eval_result)
@@ -305,6 +315,7 @@ def main(args):
     cfg.DATASETS.TEST = ("pcb_data_test",)
 
     cfg.freeze()
+    
     model = build_model(cfg)
     logger.info("Model:\n{}".format(model))
 
@@ -317,7 +328,8 @@ def main(args):
             model = GeneralizedRCNNWithTTA(cfg, model, batch_size=1)
 
         return do_test(cfg, model)
-
+    
+    # train step
     distributed = comm.get_world_size() > 1
     if distributed:
         model = DistributedDataParallel(
@@ -326,14 +338,15 @@ def main(args):
         )
 
     do_train(cfg, model, resume=args.resume)
-
+    
+    # validation step
     if not args.aifs:
         best_model = performance_review(cfg, config, args, config['model_file_dir'])
         best_model_path = os.path.join(config['model_file_dir'], best_model)
         logger.info("Best_model_path:\n{}".format(best_model_path))
     else:
         #best_model = aifs_performance_review(cfg, config, args, config['centernet2_model_output_dir'])
-        best_model_iter, Is_replaced = aifs_performance_review(args)
+        best_model_iter, Is_replaced = aifs_performance_review(args,config)
 
         test_data_dir = config['test_data_dir']
         retrain_data_val_dir = config['retrain_data_val_dir']

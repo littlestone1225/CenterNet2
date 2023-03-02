@@ -254,10 +254,13 @@ def aifs_performance_review(args, config):
         validate_new_models_on_val(model_type = model_type)
     val_best_model_iter_list = evaluate_new_models_on_val(model_type = model_type, fp_rate=args.fpr, return_type='best_models')
 
+    for best_model_iter in val_best_model_iter_list:
+        logger.info(best_model_iter)
+    
     #Test and fn
     test_inference_path = os.path.join(config['test_data_dir'], '{}_inference_result'.format(config['centernet2_model_output_version']))
     retrain_inference_path = os.path.join(config['retrain_data_val_dir'], '{}_inference_result'.format(config['centernet2_model_output_version']))
-
+    
     if run_validation or (not os.path.exists(retrain_inference_path) or not os.path.exists(test_inference_path)):
         validate_new_models_on_test_and_fn(model_type, val_best_model_iter_list)
 

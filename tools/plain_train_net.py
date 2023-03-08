@@ -46,6 +46,7 @@ from detectron2.evaluation import (
 from detectron2.modeling import build_model
 from detectron2.solver import build_lr_scheduler, build_optimizer
 from detectron2.utils.events import EventStorage
+#from detectron2.data.dataset_mapper import DatasetMapper
 from detectron2.data import transforms as T
 from detectron2.data.datasets import register_coco_instances
 
@@ -100,11 +101,10 @@ def do_test(cfg, model):
     for dataset_name in cfg.DATASETS.TEST:
 
         mapper = DatasetMapper(cfg, False, augmentations=build_custom_augmentation(cfg, False))
-        
         data_loader = build_detection_test_loader(cfg, dataset_name, mapper=mapper)
+
         output_folder = os.path.join(cfg.OUTPUT_DIR, "inference_{}".format(dataset_name))
         evaluator_type = MetadataCatalog.get(dataset_name).evaluator_type
-
         if evaluator_type == "lvis":
             evaluator = LVISEvaluator(dataset_name, cfg, True, output_folder)
         elif evaluator_type == 'coco':
@@ -129,6 +129,7 @@ def do_train(cfg, model, resume=False):
         model, cfg.OUTPUT_DIR, optimizer=optimizer, scheduler=scheduler
     )
 
+    start_iter = (checkpointer.resume_or_load(cfg.MODEL.WEIGHTS, resume=resume).get("iteration", -1) + 1)
     logger.info('Reset loaded iteration. Start training from iteration 0.')
     start_iter = 0
     max_iter = cfg.SOLVER.MAX_ITER
@@ -146,10 +147,11 @@ def do_train(cfg, model, resume=False):
     logger.info("Starting training from iteration {}".format(start_iter))
     with EventStorage(start_iter) as storage:
         for data, iteration in zip(data_loader, range(start_iter, max_iter)):
+            iteration = iteration + 1
             storage.iter = iteration
 
             loss_dict = model(data)
-            losses = sum(loss_dict.values())
+            losses = sum(loss for k, loss in loss_dict.items())
             assert torch.isfinite(losses).all(), loss_dict
 
             loss_dict_reduced = {k: v.item() for k, v in comm.reduce_dict(loss_dict).items()}
@@ -165,16 +167,15 @@ def do_train(cfg, model, resume=False):
 
             if (
                 cfg.TEST.EVAL_PERIOD > 0
-                and (iteration + 1) % cfg.TEST.EVAL_PERIOD == 0
-                and iteration != max_iter - 1
+                and iteration % cfg.TEST.EVAL_PERIOD == 0
+                and iteration != max_iter
             ):
                 do_test(cfg, model)
                 # Compared to "train_net.py", the test results are not dumped to EventStorage
                 comm.synchronize()
 
-            if iteration - start_iter > 5 and (
-                (iteration + 1) % 20 == 0 or iteration == max_iter - 1
-            ):
+            if iteration - start_iter > 5 and \
+                (iteration % 20 == 0 or iteration == max_iter):
                 for writer in writers:
                     writer.write()
             periodic_checkpointer.step(iteration)
@@ -225,7 +226,6 @@ def main(args):
 
 if __name__ == "__main__":
     # python tools/plain_train_net.py --config-file ./configs/COCO-Detection/retinanet_R_101_FPN_3x_PCB.yaml --num-gpus 2
-
     args = default_argument_parser().parse_args()
     print("Command Line Args:", args)
     launch(

@@ -2,21 +2,25 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
 """
 Detectron2 training script with a plain training loop.
+
 This script reads a given config file and runs the training or evaluation.
 It is an entry point that is able to train standard models in detectron2.
+
 In order to let one script support training of many models,
 this script contains logic that are specific to these built-in models and therefore
 may not be suitable for your own project.
 For example, your research project perhaps only needs a single "evaluator".
+
 Therefore, we recommend you to use detectron2 as a library and take
 this file as an example of how to use the library.
 You may want to write your own script with your datasets and other customizations.
+
 Compared to "train_net.py", this script supports fewer default features.
 It also includes fewer abstraction, therefore is easier to add custom logic.
 """
 
 import logging
-import os,sys
+import os
 from collections import OrderedDict
 import torch
 from torch.nn.parallel import DistributedDataParallel
@@ -28,7 +32,6 @@ from detectron2.data import (
     MetadataCatalog,
     build_detection_test_loader,
     build_detection_train_loader,
-    DatasetMapper
 )
 from detectron2.engine import default_argument_parser, default_setup, default_writers, launch
 from detectron2.evaluation import (
@@ -46,79 +49,72 @@ from detectron2.evaluation import (
 from detectron2.modeling import build_model
 from detectron2.solver import build_lr_scheduler, build_optimizer
 from detectron2.utils.events import EventStorage
-from detectron2.data import transforms as T
-from detectron2.data.datasets import register_coco_instances
-
-aoi_dir_name = os.getenv('AOI_DIR_NAME')
-assert aoi_dir_name != None, "Environment variable AOI_DIR_NAME is None"
-current_dir = os.path.dirname(os.path.abspath(__file__))
-idx = current_dir.find(aoi_dir_name) + len(aoi_dir_name)
-aoi_dir = current_dir[:idx]
-
-# Read config_file
-sys.path.append(os.path.join(aoi_dir, "config"))
-from config import read_config_yaml
-config_file = os.path.join(aoi_dir, 'config/config.yaml')
-config = read_config_yaml(config_file)
 
 logger = logging.getLogger("detectron2")
 
-def build_custom_augmentation(cfg, is_train):
+
+def get_evaluator(cfg, dataset_name, output_folder=None):
     """
-    Create a list of default :class:`Augmentation` from config.
-    Now it includes resizing and flipping.
-
-    Returns:
-        list[Augmentation]
+    Create evaluator(s) for a given dataset.
+    This uses the special metadata "evaluator_type" associated with each builtin dataset.
+    For your own dataset, you can simply create an evaluator manually in your
+    script and do not have to worry about the hacky if-else logic here.
     """
-    if is_train:
-        min_size = cfg.INPUT.MIN_SIZE_TRAIN
-        max_size = cfg.INPUT.MAX_SIZE_TRAIN
-        sample_style = cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING
-    else:
-        min_size = cfg.INPUT.MIN_SIZE_TEST
-        max_size = cfg.INPUT.MAX_SIZE_TEST
-        sample_style = "choice"
-    augmentation = [T.ResizeShortestEdge(min_size, max_size, sample_style)]
-
-
-    if is_train:
-        #augmentation.append(T.RandomFlip())
-        augmentation.append(T.RandomContrast(0.2, 1.8))
-        augmentation.append(T.RandomBrightness(0.5, 1.5))
-        augmentation.append(T.RandomSaturation(0.9, 1.1))
-        augmentation.append(T.RandomLighting(0.5))
-
-        augmentation.append(T.RandomRotation(cfg.INPUT.ROTATION_ANGLES, expand=False, sample_style="choice"))
-        augmentation.append(T.RandomFlip(prob=0.5, horizontal=True, vertical=False))
-        augmentation.append(T.RandomFlip(prob=0.5, horizontal=False, vertical=True))
-    return augmentation
+    if output_folder is None:
+        output_folder = os.path.join(cfg.OUTPUT_DIR, "inference")
+    evaluator_list = []
+    evaluator_type = MetadataCatalog.get(dataset_name).evaluator_type
+    if evaluator_type in ["sem_seg", "coco_panoptic_seg"]:
+        evaluator_list.append(
+            SemSegEvaluator(
+                dataset_name,
+                distributed=True,
+                output_dir=output_folder,
+            )
+        )
+    if evaluator_type in ["coco", "coco_panoptic_seg"]:
+        evaluator_list.append(COCOEvaluator(dataset_name, output_dir=output_folder))
+    if evaluator_type == "coco_panoptic_seg":
+        evaluator_list.append(COCOPanopticEvaluator(dataset_name, output_folder))
+    if evaluator_type == "cityscapes_instance":
+        assert (
+            torch.cuda.device_count() >= comm.get_rank()
+        ), "CityscapesEvaluator currently do not work with multiple machines."
+        return CityscapesInstanceEvaluator(dataset_name)
+    if evaluator_type == "cityscapes_sem_seg":
+        assert (
+            torch.cuda.device_count() >= comm.get_rank()
+        ), "CityscapesEvaluator currently do not work with multiple machines."
+        return CityscapesSemSegEvaluator(dataset_name)
+    if evaluator_type == "pascal_voc":
+        return PascalVOCDetectionEvaluator(dataset_name)
+    if evaluator_type == "lvis":
+        return LVISEvaluator(dataset_name, cfg, True, output_folder)
+    if len(evaluator_list) == 0:
+        raise NotImplementedError(
+            "no Evaluator for the dataset {} with the type {}".format(dataset_name, evaluator_type)
+        )
+    if len(evaluator_list) == 1:
+        return evaluator_list[0]
+    return DatasetEvaluators(evaluator_list)
 
 
 def do_test(cfg, model):
     results = OrderedDict()
     for dataset_name in cfg.DATASETS.TEST:
-
-        mapper = DatasetMapper(cfg, False, augmentations=build_custom_augmentation(cfg, False))
-        
-        data_loader = build_detection_test_loader(cfg, dataset_name, mapper=mapper)
-        output_folder = os.path.join(cfg.OUTPUT_DIR, "inference_{}".format(dataset_name))
-        evaluator_type = MetadataCatalog.get(dataset_name).evaluator_type
-
-        if evaluator_type == "lvis":
-            evaluator = LVISEvaluator(dataset_name, cfg, True, output_folder)
-        elif evaluator_type == 'coco':
-            evaluator = COCOEvaluator(dataset_name, cfg, True, output_folder)
-        else:
-            assert 0, evaluator_type
-
-        results[dataset_name] = inference_on_dataset(model, data_loader, evaluator)
+        data_loader = build_detection_test_loader(cfg, dataset_name)
+        evaluator = get_evaluator(
+            cfg, dataset_name, os.path.join(cfg.OUTPUT_DIR, "inference", dataset_name)
+        )
+        results_i = inference_on_dataset(model, data_loader, evaluator)
+        results[dataset_name] = results_i
         if comm.is_main_process():
             logger.info("Evaluation results for {} in csv format:".format(dataset_name))
-            print_csv_format(results[dataset_name])
+            print_csv_format(results_i)
     if len(results) == 1:
         results = list(results.values())[0]
     return results
+
 
 def do_train(cfg, model, resume=False):
     model.train()
@@ -128,11 +124,8 @@ def do_train(cfg, model, resume=False):
     checkpointer = DetectionCheckpointer(
         model, cfg.OUTPUT_DIR, optimizer=optimizer, scheduler=scheduler
     )
-
     start_iter = (
-        checkpointer.resume_or_load(
-            cfg.MODEL.WEIGHTS, resume=resume
-        ).get("iteration", -1) + 1
+        checkpointer.resume_or_load(cfg.MODEL.WEIGHTS, resume=resume).get("iteration", -1) + 1
     )
     max_iter = cfg.SOLVER.MAX_ITER
 
@@ -142,10 +135,9 @@ def do_train(cfg, model, resume=False):
 
     writers = default_writers(cfg.OUTPUT_DIR, max_iter) if comm.is_main_process() else []
 
-
-    mapper = DatasetMapper(cfg, True, augmentations=build_custom_augmentation(cfg, True))
-    data_loader = build_detection_train_loader(cfg, mapper=mapper)
-
+    # compared to "train_net.py", we do not support accurate timing and
+    # precise BN here, because they are not trivial to implement in a small training loop
+    data_loader = build_detection_train_loader(cfg)
     logger.info("Starting training from iteration {}".format(start_iter))
     with EventStorage(start_iter) as storage:
         for data, iteration in zip(data_loader, range(start_iter, max_iter)):
@@ -191,21 +183,13 @@ def setup(args):
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
     cfg.freeze()
-    default_setup(cfg, args)
+    default_setup(
+        cfg, args
+    )  # if you don't like any of the default setup, write your own setup code
     return cfg
 
 
 def main(args):
-
-    pcb_data_dir = config['pcb_data_dir']
-    train_json_file_path = os.path.join(pcb_data_dir, 'annotations/train.json')
-    pcb_train_data_dir = os.path.join(pcb_data_dir, 'train')
-    register_coco_instances("pcb_data_train", {}, train_json_file_path, pcb_train_data_dir)
-
-    test_json_file_path = os.path.join(pcb_data_dir, 'annotations/test.json')
-    pcb_test_data_dir = os.path.join(pcb_data_dir, 'test')
-    register_coco_instances("pcb_data_test", {}, test_json_file_path, pcb_test_data_dir)
-
     cfg = setup(args)
 
     model = build_model(cfg)
@@ -227,8 +211,6 @@ def main(args):
 
 
 if __name__ == "__main__":
-    # python tools/plain_train_net.py --config-file ./configs/COCO-Detection/retinanet_R_101_FPN_3x_PCB.yaml --num-gpus 2
-
     args = default_argument_parser().parse_args()
     print("Command Line Args:", args)
     launch(

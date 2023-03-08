@@ -45,8 +45,11 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 idx = current_dir.find(aoi_dir_name) + len(aoi_dir_name)
 aoi_dir = current_dir[:idx]
 
+# Read config_file
 sys.path.append(os.path.join(aoi_dir, "config"))
 from config import read_config_yaml, write_config_yaml
+config_file = os.path.join(aoi_dir, 'config/config.yaml')
+config = read_config_yaml(config_file)
 """
 sys.path.append(os.path.join(aoi_dir, "ctr2_pcb/previous_stuff"))
 from validation.validation import gen_inference_json
@@ -65,12 +68,13 @@ logger = logging.getLogger("detectron2")
 def do_test(cfg, model):
     results = OrderedDict()
     for dataset_name in cfg.DATASETS.TEST:
-        mapper = None if cfg.INPUT.TEST_INPUT_TYPE == 'default' else \
-            DatasetMapper(
-                cfg, False, augmentations=build_custom_augmentation(cfg, False))
+        if cfg.INPUT.TEST_INPUT_TYPE == 'default':
+            mapper = None
+        else:
+            mapper = DatasetMapper(cfg, False, augmentations=build_custom_augmentation(cfg, False))
+        
         data_loader = build_detection_test_loader(cfg, dataset_name, mapper=mapper)
-        output_folder = os.path.join(
-            cfg.OUTPUT_DIR, "inference_{}".format(dataset_name))
+        output_folder = os.path.join(cfg.OUTPUT_DIR, "inference_{}".format(dataset_name))
         evaluator_type = MetadataCatalog.get(dataset_name).evaluator_type
 
         if evaluator_type == "lvis":
@@ -79,12 +83,10 @@ def do_test(cfg, model):
             evaluator = COCOEvaluator(dataset_name, cfg, True, output_folder)
         else:
             assert 0, evaluator_type
-            
-        results[dataset_name] = inference_on_dataset(
-            model, data_loader, evaluator)
+
+        results[dataset_name] = inference_on_dataset(model, data_loader, evaluator)
         if comm.is_main_process():
-            logger.info("Evaluation results for {} in csv format:".format(
-                dataset_name))
+            logger.info("Evaluation results for {} in csv format:".format(dataset_name))
             print_csv_format(results[dataset_name])
     if len(results) == 1:
         results = list(results.values())[0]
@@ -102,7 +104,7 @@ def do_train(cfg, model, resume=False):
     start_iter = (
         checkpointer.resume_or_load(
             cfg.MODEL.WEIGHTS, resume=resume,
-            ).get("iteration", -1) + 1
+        ).get("iteration", -1) + 1
     )
     if cfg.SOLVER.RESET_ITER:
         logger.info('Reset loaded iteration. Start training from iteration 0.')
@@ -123,8 +125,11 @@ def do_train(cfg, model, resume=False):
         else []
     )
 
-    mapper = DatasetMapper(cfg, True) if cfg.INPUT.CUSTOM_AUG == '' else \
-        DatasetMapper(cfg, True, augmentations=build_custom_augmentation(cfg, True))
+    if cfg.INPUT.TEST_INPUT_TYPE == 'default':
+        mapper = None
+    else:
+        mapper = DatasetMapper(cfg, True, augmentations=build_custom_augmentation(cfg, True))
+    
     if cfg.DATALOADER.SAMPLER_TRAIN in ['TrainingSampler', 'RepeatFactorTrainingSampler']:
         data_loader = build_detection_train_loader(cfg, mapper=mapper)
     else:
@@ -296,8 +301,6 @@ def aifs_performance_review(args, config):
 
 def main(args):
     if args.aifs:
-        config_file = os.path.join(aoi_dir, 'config/config.yaml')
-        config = read_config_yaml(config_file)
         args.config_file = config['centernet2_yaml_file_path']
         
         pcb_data_dir = config['pcb_data_dir']
@@ -309,8 +312,6 @@ def main(args):
         pcb_test_data_dir = os.path.join(pcb_data_dir, 'test')
         register_coco_instances("pcb_data_test", {}, test_json_file_path, pcb_test_data_dir)
     else:
-        config_file = os.path.join(args.aoi_dir, 'config/config.yaml')
-        config = read_config_yaml(config_file)
         args.config_file = config['yaml_file_path']
     
     cfg = setup(args)

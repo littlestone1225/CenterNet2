@@ -129,14 +129,8 @@ def do_train(cfg, model, resume=False):
         model, cfg.OUTPUT_DIR, optimizer=optimizer, scheduler=scheduler
     )
 
-    start_iter = (
-        checkpointer.resume_or_load(
-            cfg.MODEL.WEIGHTS, resume=resume
-        ).get("iteration", -1) + 1
-    )
-    if cfg.SOLVER.RESET_ITER:
-        logger.info('Reset loaded iteration. Start training from iteration 0.')
-        start_iter = 0
+    logger.info('Reset loaded iteration. Start training from iteration 0.')
+    start_iter = 0
     max_iter = cfg.SOLVER.MAX_ITER if cfg.SOLVER.TRAIN_ITER < 0 else cfg.SOLVER.TRAIN_ITER
 
     periodic_checkpointer = PeriodicCheckpointer(
